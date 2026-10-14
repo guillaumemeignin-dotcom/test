@@ -1,0 +1,9 @@
+# API response cache and screen output (can contain licensed market data)
+.cache/
+output/
+# secrets
+.env
+*.env
+__pycache__/
+*.pyc
+.pytest_cache/

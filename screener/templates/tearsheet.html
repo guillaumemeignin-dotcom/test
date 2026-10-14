@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ s.symbol }} Tear Sheet</title>
+<style>
+  @page { size: A4; margin: 12mm; }
+  :root { --ink:#1b1f24; --muted:#5b6470; --line:#dde1e6; --head:#f3f5f8; --accent:#1f4e79; }
+  body { font: 11px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); margin: 0 auto; max-width: 190mm; padding: 12px; background:#fff; }
+  header { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px solid var(--accent); padding-bottom: 4px; }
+  h1 { font-size: 17px; margin: 0; } h2 { font-size: 12px; margin: 12px 0 4px; color: var(--accent); text-transform: uppercase; letter-spacing: .04em; }
+  .muted { color: var(--muted); }
+  .score { font-size: 22px; font-weight: 600; color: var(--accent); }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
+  .desc { max-height: 9.5em; overflow: hidden; text-align: justify; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { padding: 2px 5px; border-bottom: 1px solid var(--line); text-align: right; font-variant-numeric: tabular-nums; }
+  th:first-child, td:first-child { text-align: left; }
+  th { background: var(--head); font-weight: 600; }
+  ul { margin: 0; padding-left: 16px; }
+  img { width: 100%; }
+  footer { margin-top: 10px; font-size: 9px; color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>{{ s.name }} <span class="muted">({{ s.symbol }})</span></h1>
+    <div class="muted">{{ s.exchange }} · {{ s.country or s.region }} · {{ s.sector or '–' }} / {{ s.industry or '–' }}{% if s.website %} · {{ s.website }}{% endif %}</div>
+  </div>
+  <div style="text-align:right"><div class="score">{{ e.score }}</div><div class="muted">rank #{{ rank }} · {{ run_date }}</div></div>
+</header>
+
+<h2>Business</h2>
+<div class="desc">{{ s.description or 'No description available.' }}</div>
+
+<div class="grid">
+  <div>
+    <h2>Why it passed</h2>
+    <ul>{% for reason in e.reasons %}<li>{{ reason }}</li>{% endfor %}</ul>
+  </div>
+  <div>
+    <h2>Valuation</h2>
+    <table>
+      <tr><th></th><th>Current</th><th>Own median</th><th>Sector median</th></tr>
+      <tr><td>EV/EBIT</td><td>{{ s.ev_ebit|x }}</td><td>{{ s.ev_ebit_hist_median|x }}</td><td>{{ (sec.ev_ebit_median if sec else none)|x }}</td></tr>
+      <tr><td>FCF yield</td><td>{{ s.fcf_yield|pct }}</td><td>{{ s.fcf_yield_hist_median|pct }}</td><td>{{ (sec.fcf_yield_median if sec else none)|pct }}</td></tr>
+      <tr><td>Market cap</td><td>€{{ s.market_cap_eur|money }}</td><td colspan="2" class="muted">EV {{ s.enterprise_value|money }} {{ s.reporting_currency }}</td></tr>
+      <tr><td>Analysts</td><td>{{ s.analysts or 0 }}</td><td colspan="2" class="muted">Insiders own {{ s.insider_held_pct|pct }}{% if s.insider_net_shares is not none %}; net {{ s.insider_net_shares|money }} shares ({{ s.insider_window_months }}m){% endif %}</td></tr>
+    </table>
+  </div>
+</div>
+
+<h2>Financials ({{ s.reporting_currency }})</h2>
+<table>
+  <tr><th>Fiscal year</th>{% for y in s.years|reverse %}<th>{{ y.fiscal_year }}</th>{% endfor %}</tr>
+  <tr><td>Revenue</td>{% for y in s.years|reverse %}<td>{{ y.revenue|money }}</td>{% endfor %}</tr>
+  <tr><td>EBIT</td>{% for y in s.years|reverse %}<td>{{ y.ebit|money }}</td>{% endfor %}</tr>
+  <tr><td>EBIT margin</td>{% for y in s.years|reverse %}<td>{{ y.ebit_margin|pct }}</td>{% endfor %}</tr>
+  <tr><td>Net income</td>{% for y in s.years|reverse %}<td>{{ y.net_income|money }}</td>{% endfor %}</tr>
+  <tr><td>Free cash flow</td>{% for y in s.years|reverse %}<td>{{ y.free_cash_flow|money }}</td>{% endfor %}</tr>
+  <tr><td>ROIC</td>{% for y in s.years|reverse %}<td>{{ y.roic|pct }}</td>{% endfor %}</tr>
+  <tr><td>Net debt / EBITDA</td>{% for y in s.years|reverse %}<td>{{ y.net_debt_to_ebitda|x }}</td>{% endfor %}</tr>
+  <tr><td>EV/EBIT (year end)</td>{% for y in s.years|reverse %}<td>{{ y.ev_ebit|x }}</td>{% endfor %}</tr>
+  <tr><td>FCF yield (year end)</td>{% for y in s.years|reverse %}<td>{{ y.fcf_yield|pct }}</td>{% endfor %}</tr>
+</table>
+<div class="muted">Latest year valued at today's market cap; earlier years at their fiscal year-end market cap.</div>
+
+<h2>Share price</h2>
+{% if chart %}<img alt="{{ s.symbol }} share price chart" src="data:image/png;base64,{{ chart }}">{% else %}<p class="muted">No price history available.</p>{% endif %}
+
+<footer>Score components: {% for k, v in e.components.items() %}{{ k.replace('_', ' ') }} {{ (v * 100)|round|int }}{% if not loop.last %} · {% endif %}{% endfor %}. Data: {{ s.currency }} trading currency. Not investment advice.</footer>
+</body>
+</html>

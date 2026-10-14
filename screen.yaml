@@ -1,0 +1,95 @@
+# ML Capital screen: under-followed small & mid caps, global.
+# Every threshold below can be changed without touching code. Set a filter to
+# null to switch it off.
+
+provider:
+  name: yahoo            # see screener/providers/__init__.py for registered back ends
+  options:
+    retries: 4
+    backoff_seconds: 2.0
+    min_interval: 0.25   # seconds between Yahoo calls; raise it if you get rate-limited
+
+cache:
+  dir: .cache
+  ttl_days:              # how long cached responses stay fresh
+    universe: 7
+    profile: 7
+    analysts: 7
+    financials: 30
+    insiders: 7
+    prices: 1
+    fx: 1
+
+output_dir: output
+workers: 4               # parallel symbol fetches
+max_symbols: null        # cap the number of symbols processed (handy for a quick test run)
+
+universe:
+  market_cap_eur: {min: 10_000_000, max: 1_000_000_000}
+  # Financials/real estate don't fit ROIC or net debt/EBITDA; remove to include them.
+  exclude_sectors: [Financial Services, Real Estate]
+  # region -> Yahoo screener region codes and primary exchanges (avoids duplicate
+  # cross-listings such as Frankfurt copies of US stocks). An empty list = all exchanges.
+  regions:
+    US:        {us: [NMS, NYQ, ASE, NGM, NCM]}
+    UK:        {gb: [LSE]}
+    Canada:    {ca: [TOR, VAN]}
+    Australia: {au: [ASX]}
+    Japan:     {jp: [JPX]}
+    Europe:
+      de: [GER]
+      fr: [PAR]
+      nl: [AMS]
+      be: [BRU]
+      it: [MIL]
+      es: [MCE]
+      pt: [LIS]
+      ie: [ISE]
+      at: [VIE]
+      ch: [EBS]
+      se: [STO]
+      "no": [OSL]          # quoted: bare no is YAML for false
+      dk: [CPH]
+      fi: [HEL]
+      pl: [WSE]
+      gr: [ATH]
+    LatAm:
+      br: [SAO]
+      mx: [MEX]
+      cl: [SGO]
+      ar: [BUE]
+      co: [BVC]
+      pe: []
+
+filters:
+  max_analysts: 3                       # core of the strategy
+  require_profitable_or_fcf_positive: true
+  min_roic: 0.10
+  max_net_debt_to_ebitda: 2.0
+  # Optional valuation gates (null = scored only, not a hard filter):
+  max_ev_ebit_vs_history: null          # e.g. 1.0 = EV/EBIT at or below own historical median
+  max_ev_ebit_vs_sector: null           # e.g. 1.0 = at or below sector median
+  min_fcf_yield: null                   # e.g. 0.05
+  require_insider_buying: false
+
+valuation:
+  history_years: 5                      # annual periods to fetch (Yahoo usually has 4)
+  min_history_years: 3                  # prior years needed for an own-history comparison
+  min_sector_peers: 5                   # peers needed for a sector comparison
+
+scoring:
+  # Components missing data are dropped and the rest re-weighted.
+  weights:
+    coverage: 0.25
+    quality: 0.20
+    balance_sheet: 0.10
+    value_vs_history: 0.15
+    value_vs_sector: 0.20
+    insider: 0.10
+  roic_excellent: 0.30                  # ROIC at which quality maxes out
+  ev_ebit_discount_range: [-0.25, 0.50] # discount to median mapped to 0..1
+  fcf_yield_spread_range: [-0.02, 0.05] # FCF yield minus median mapped to 0..1
+  insider_held_full: 0.30               # insider ownership at which that sub-score maxes out
+
+report:
+  top_n_tearsheets: 20

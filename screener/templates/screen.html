@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ML Capital Screen {{ run_date }}</title>
+<style>
+  :root { --ink:#1b1f24; --muted:#5b6470; --line:#dde1e6; --head:#f3f5f8; --accent:#1f4e79; --new:#e6f4ea; }
+  body { font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); margin: 24px; background:#fff; }
+  h1 { font-size: 20px; margin: 0 0 4px; } h2 { font-size: 15px; margin: 28px 0 8px; }
+  .meta { color: var(--muted); margin-bottom: 16px; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { padding: 5px 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+  th { background: var(--head); position: sticky; top: 0; cursor: pointer; white-space: nowrap; }
+  td.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  tr.new td:first-child { box-shadow: inset 3px 0 var(--accent); } tr.new { background: var(--new); }
+  .reasons { color: var(--muted); max-width: 520px; }
+  .tag { font-size: 10px; background: var(--accent); color: #fff; padding: 1px 5px; border-radius: 3px; }
+  a { color: var(--accent); }
+  .wrap { overflow-x: auto; }
+</style>
+</head>
+<body>
+<h1>ML Capital – under-followed small &amp; mid caps</h1>
+<div class="meta">Run {{ run_date }} · {{ rows|length }} names passed · {{ result.universe_size }} listings scanned ·
+  market cap €{{ (cfg.universe.market_cap_eur.min / 1e6)|round|int }}m–€{{ (cfg.universe.market_cap_eur.max / 1e6)|round|int }}m ·
+  ≤{{ cfg.filters.max_analysts }} analysts</div>
+
+<h2>New since last run{% if previous %} ({{ previous.run_date }}){% endif %}</h2>
+{% if previous is none %}
+<p class="meta">First run – this run is the baseline for future comparisons.</p>
+{% elif not new %}
+<p class="meta">No new entrants.</p>
+{% else %}
+<p>{% for r in new %}<a href="#{{ r.metrics.symbol }}">{{ r.metrics.symbol }}</a> ({{ r.metrics.name }}){% if not loop.last %}, {% endif %}{% endfor %}</p>
+{% endif %}
+
+<h2>Ranked screen</h2>
+<div class="wrap">
+<table id="screen">
+<thead><tr>
+  <th>#</th><th>Symbol</th><th>Name</th><th>Score</th><th>Region</th><th>Sector</th><th>Mkt cap €</th>
+  <th>Analysts</th><th>ROIC</th><th>ND/EBITDA</th><th>EV/EBIT</th><th>FCF yield</th><th>Insiders</th><th>Why it passed</th>
+</tr></thead>
+<tbody>
+{% for r in rows %}{% set s = r.metrics %}
+<tr id="{{ s.symbol }}" class="{{ 'new' if r.new_entry }}">
+  <td class="n">{{ loop.index }}</td>
+  <td>{% if s.symbol in tear_symbols %}<a href="tearsheets/{{ safe_name(s.symbol) }}.html">{{ s.symbol }}</a>{% else %}{{ s.symbol }}{% endif %}
+      {% if r.new_entry %}<span class="tag">NEW</span>{% endif %}</td>
+  <td>{{ s.name }}</td>
+  <td class="n">{{ r.evaluation.score }}</td>
+  <td>{{ s.region }}</td>
+  <td>{{ s.sector or '–' }}</td>
+  <td class="n" data-v="{{ s.market_cap_eur or 0 }}">{{ s.market_cap_eur|money }}</td>
+  <td class="n">{{ s.analysts or 0 }}</td>
+  <td class="n" data-v="{{ s.roic or '' }}">{{ s.roic|pct }}</td>
+  <td class="n">{{ s.net_debt_to_ebitda|x }}</td>
+  <td class="n" data-v="{{ s.ev_ebit or '' }}">{{ s.ev_ebit|x }}</td>
+  <td class="n" data-v="{{ s.fcf_yield or '' }}">{{ s.fcf_yield|pct }}</td>
+  <td class="n">{{ s.insider_held_pct|pct }}</td>
+  <td class="reasons">{{ r.evaluation.reasons|join('; ') }}</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+<script>
+// Click a header to sort; numeric columns sort on data-v when present.
+document.querySelectorAll('#screen th').forEach((th, i) => th.addEventListener('click', () => {
+  const body = th.closest('table').tBodies[0];
+  const asc = th.dataset.asc !== 'true'; th.dataset.asc = asc;
+  const val = td => { const v = td.dataset.v ?? td.textContent.trim(); const n = parseFloat(v); return isNaN(n) ? v : n; };
+  [...body.rows].sort((a, b) => {
+    const x = val(a.cells[i]), y = val(b.cells[i]);
+    return (x > y ? 1 : x < y ? -1 : 0) * (asc ? 1 : -1);
+  }).forEach(r => body.appendChild(r));
+}));
+</script>
+</body>
+</html>
